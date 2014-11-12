@@ -1,0 +1,530 @@
+<?php
+/**
+ * Implements hook_enable().
+ */
+function library_schedule_enable() {
+    node_types_rebuild();
+    library_schedule_add_taxonomy();
+    library_schedule_add_fields();
+    
+}
+/**
+ * Implements hook_install().
+ */
+function library_schedule_install() {
+    variable_set('library_schedule_default_open','7:30am');
+    variable_set('library_schedule_default_close','10:00pm');
+}
+/**
+ * Implements hook_uninstall().
+ */
+function library_schedule_uninstall() {
+    $entries = node_load_multiple(array(),array('type'=>'library_schedule_entry'));
+    foreach($entries as $node) {
+        node_delete($node->nid);
+    }
+    
+    $exceptions = node_load_multiple(array(),array('type'=>'library_schedule_exception'));
+    foreach($exceptions as $node) {
+        node_delete($node->nid);
+    }
+    
+    library_schedule_delete_fields();
+    node_type_delete('library_schedule_entry');
+    node_type_delete('library_schedule_exception');
+    library_schedule_delete_taxonomy();
+    variable_del('library_schedule_default_open');
+    variable_del('library_schedule_default_close');
+    field_purge_batch(1000);
+}
+
+/**
+ * Add Fields for Library Schedule entry
+ */
+function library_schedule_entry_add_fields() {
+   $t = get_t();
+    
+    $fields = array();
+    //Start and End date for an entry
+    $fields['lhe_start_date'] = array(
+        'field_name' => 'lhe_start_date',
+        'type' => 'text',
+        'required' => TRUE,
+    );
+    
+    $fields['lhe_end_date'] = array(
+        'field_name' => 'lhe_end_date',
+        'type' => 'text',
+        'required' => TRUE,
+    );
+    //Monday Hours
+    $fields['lhe_monday_hours_open'] = array(
+        'field_name' => 'lhe_monday_hours_open',
+        'type' => 'text',
+    );
+    $fields['lhe_monday_hours_close'] = array(
+        'field_name' => 'lhe_monday_hours_close',
+        'type' => 'text',
+    );
+    
+    //Tuesday Hours
+    $fields['lhe_tuesday_hours_open'] = array(
+        'field_name' => 'lhe_tuesday_hours_open',
+        'type' => 'text',
+    );
+    $fields['lhe_tuesday_hours_close'] = array(
+        'field_name' => 'lhe_tuesday_hours_close',
+        'type' => 'text',
+    );
+    
+    //Wednesday Hours
+    $fields['lhe_wednesday_hours_open'] = array(
+        'field_name' => 'lhe_wednesday_hours_open',
+        'type' => 'text',
+    );
+    $fields['lhe_wednesday_hours_close'] = array(
+        'field_name' => 'lhe_wednesday_hours_close',
+        'type' => 'text',
+    );
+    
+    //Thursday Hours
+    $fields['lhe_thursday_hours_open'] = array(
+        'field_name' => 'lhe_thursday_hours_open',
+        'type' => 'text',
+    );
+    $fields['lhe_thursday_hours_close'] = array(
+        'field_name' => 'lhe_thursday_hours_close',
+        'type' => 'text',
+    );
+    
+    //Friday Hours
+    $fields['lhe_friday_hours_open'] = array(
+        'field_name' => 'lhe_friday_hours_open',
+        'type' => 'text',
+    );
+    $fields['lhe_friday_hours_close'] = array(
+        'field_name' => 'lhe_friday_hours_close',
+        'type' => 'text',
+    );
+    
+    //Saturday Hours
+    $fields['lhe_saturday_hours_open'] = array(
+        'field_name' => 'lhe_saturday_hours_open',
+        'type' => 'text',
+    );
+    $fields['lhe_saturday_hours_close'] = array(
+        'field_name' => 'lhe_saturday_hours_close',
+        'type' => 'text',
+    );
+    
+    //Sunday Hours
+    $fields['lhe_sunday_hours_open'] = array(
+        'field_name' => 'lhe_sunday_hours_open',
+        'type' => 'text',
+    );
+    $fields['lhe_sunday_hours_close'] = array(
+        'field_name' => 'lhe_sunday_hours_close',
+        'type' => 'text',
+    );
+    
+   //Add fields for Library Schedule entry
+    foreach ($fields as $field) {
+        field_create_field($field);
+    }
+    
+    //Start and End date for an entry
+    $fields['lhe_start_date'] = array(
+        'field_name' => 'lhe_start_date',
+        'type' => 'text',
+        'required' => TRUE,
+        'label' => $t('Start Date'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_entry',
+    );
+    
+    $fields['lhe_end_date'] = array(
+        'field_name' => 'lhe_end_date',
+        'type' => 'text',
+        'required' => TRUE,
+        'label' => $t('End Date'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_entry',
+    );
+    
+    $fields['library_schedule_group'] = array(
+        'field_name' => 'library_schedule_group',
+        'label' => $t('Group'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_entry',
+        'required' => TRUE,
+        'widget' => array(
+            'type' => 'options_select',
+        ),
+        'display' => array(
+            'default' => array('type'=>'hidden'),
+            'teaser' => array('type'=>'hidden'),
+        ),
+    );
+    
+    //Monday Hours
+    $fields['lhe_monday_hours_open'] = array(
+        'field_name' => 'lhe_monday_hours_open',
+        'type' => 'text',
+        'label' => $t('Monday Opening Time'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_entry',
+        'required' => TRUE,
+    );
+    $fields['lhe_monday_hours_close'] = array(
+        'field_name' => 'lhe_monday_hours_close',
+        'type' => 'text',
+        'label' => $t('Monday Closing Time'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_entry',
+        'required' => TRUE,
+    );
+    
+    //Tuesday Hours
+    $fields['lhe_tuesday_hours_open'] = array(
+        'field_name' => 'lhe_tuesday_hours_open',
+        'type' => 'text',
+        'label' => $t('Tuesday Opening Time'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_entry',
+        'required' => TRUE,
+    );
+    $fields['lhe_tuesday_hours_close'] = array(
+        'field_name' => 'lhe_tuesday_hours_close',
+        'type' => 'text',
+        'label' => $t('Tuesday Closing Time'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_entry',
+        'required' => TRUE,
+    );
+    
+    //Wednesday Hours
+    $fields['lhe_wednesday_hours_open'] = array(
+        'field_name' => 'lhe_wednesday_hours_open',
+        'type' => 'text',
+        'label' => $t('Wednesday Opening Time'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_entry',
+        'required' => TRUE,
+    );
+    $fields['lhe_wednesday_hours_close'] = array(
+        'field_name' => 'lhe_wednesday_hours_close',
+        'type' => 'text',
+        'label' => $t('Wednesday Closing Time'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_entry',
+        'required' => TRUE,
+    );
+    
+    //Thursday Hours
+    $fields['lhe_thursday_hours_open'] = array(
+        'field_name' => 'lhe_thursday_hours_open',
+        'type' => 'text',
+        'label' => $t('Thursday Opening Time'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_entry',
+        'required' => TRUE,
+    );
+    $fields['lhe_thursday_hours_close'] = array(
+        'field_name' => 'lhe_thursday_hours_close',
+        'type' => 'text',
+        'label' => $t('Thursday Closing Time'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_entry',
+        'required' => TRUE,
+    );
+    
+    //Friday Hours
+    $fields['lhe_friday_hours_open'] = array(
+        'field_name' => 'lhe_friday_hours_open',
+        'type' => 'text',
+        'label' => $t('Friday Opening Time'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_entry',
+        'required' => TRUE,
+    );
+    $fields['lhe_friday_hours_close'] = array(
+        'field_name' => 'lhe_friday_hours_close',
+        'type' => 'text',
+        'label' => $t('Friday Closing Time'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_entry',
+        'required' => TRUE,
+    );
+    
+    //Saturday Hours
+    $fields['lhe_saturday_hours_open'] = array(
+        'field_name' => 'lhe_saturday_hours_open',
+        'type' => 'text',
+        'label' => $t('Saturday Opening Time'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_entry',
+        'required' => TRUE,
+    );
+    $fields['lhe_saturday_hours_close'] = array(
+        'field_name' => 'lhe_saturday_hours_close',
+        'type' => 'text',
+        'label' => $t('Saturday Closing Time'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_entry',
+        'required' => TRUE,
+    );
+    
+    //Sunday Hours
+    $fields['lhe_sunday_hours_open'] = array(
+        'field_name' => 'lhe_sunday_hours_open',
+        'type' => 'text',
+        'label' => $t('Sunday Opening Time'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_entry',
+        'required' => TRUE,
+    );
+    $fields['lhe_sunday_hours_close'] = array(
+        'field_name' => 'lhe_sunday_hours_close',
+        'type' => 'text',
+        'label' => $t('Sunday Closing Time'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_entry',
+        'required' => TRUE,
+    );
+    
+    foreach ($fields as $field) {
+        field_create_instance($field);
+    }
+}
+
+/**
+ * Add Fields for Library Schedule exception
+ */
+function library_schedule_exception_add_fields() {
+    $t = get_t();
+    $fields = array();
+    $fields['lhe_exception_date'] = array(
+        'field_name' => 'lhe_exception_date',
+        'type' => 'text',
+    );
+    
+    $fields['lhe_exception_open'] = array(
+        'field_name' => 'lhe_exception_open',
+        'type' => 'text',
+    );
+    
+    $fields['lhe_exception_close'] = array(
+        'field_name' => 'lhe_exception_close',
+        'type' => 'text',
+    );
+    
+    //Add fields for Library Schedule exception
+    foreach ($fields as $field) {
+        field_create_field($field);
+    }
+    //
+    $fields['lhe_exception_date'] = array(
+        'field_name' => 'lhe_exception_date',
+        'label' => $t('Exception Date'),
+        'required' => TRUE,
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_exception',
+    );
+    
+    $fields['library_schedule_group'] = array(
+        'field_name' => 'library_schedule_group',
+        'label' => $t('Group'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_exception',
+        'required' => TRUE,
+        'widget' => array(
+            'type' => 'options_select',
+        ),
+        'display' => array(
+            'default' => array('type'=>'hidden'),
+            'teaser' => array('type'=>'hidden'),
+        ),
+    );
+    
+    $fields['lhe_exception_open'] = array(
+        'field_name' => 'lhe_exception_open',
+        'label' => $t('Opening Time'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_exception',
+        'default_value' => array(array('value' => 'Closed'),),
+        'required' => TRUE,
+    );
+    $fields['lhe_exception_close'] = array(
+        'field_name' => 'lhe_exception_close',
+        'label' => $t('Closing Time'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_exception',
+        'default_value' => array(array('value' => 'Closed'),),
+        'required' => TRUE,
+    );
+    
+    foreach ($fields as $field) {
+        field_create_instance($field);
+    }
+}
+
+/**
+ * Adds defined fields to Library Schedule content type
+ */
+function library_schedule_add_fields() {
+    library_schedule_add_group_field();
+    library_schedule_add_weight_field();
+    library_schedule_entry_add_fields();
+    library_schedule_exception_add_fields();
+}
+
+/**
+ * Add weight field to both node types.
+ */
+function library_schedule_add_weight_field() {
+    $t = get_t();
+    $field = array(
+        'field_name' => 'library_schedule_weight',
+        'type' => 'text'
+    );
+    field_create_field($field);
+
+    $field_instance['entry'] = array(
+        'field_name' => 'library_schedule_weight',
+        'label' => $t('List Order'),
+        'description' => $t('The order by which the entry is listed.'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_entry',
+        'default_value' => array(array('value' => 0),),
+        'required' => TRUE,
+    );
+    
+    $field_instance['exception'] = array(
+        'field_name' => 'library_schedule_weight',
+        'label' => $t('List Order'),
+        'description' => $t('The order by which the exception is listed.'),
+        'entity_type' => 'node',
+        'bundle' => 'library_schedule_exception',
+        'default_value' => array(array('value' => 0),),
+        'required' => TRUE,
+    );
+    
+    foreach($field_instance as $instance) {
+        field_create_instance($instance);
+    }
+}
+
+/**
+ * Add the Library Schedule group taxonomy field to both node types.
+ */
+function library_schedule_add_group_field() {
+    $field = array(
+        'field_name' => 'library_schedule_group',
+        'type' => 'taxonomy_term_reference',
+        'settings' => array(
+            'allowed_values' => array(
+                array(
+                    'vocabulary' => 'lh_group',
+                    'parent' => 0,
+                ),
+            ),
+        ),
+    );
+    field_create_field($field);
+}
+/**
+ * Delete the added fields
+ */
+function library_schedule_delete_fields() {
+    $field_entries = array(
+        'lhe_start_date',
+        'lhe_end_date',
+        'lhe_monday_hours_open',
+        'lhe_monday_hours_close',
+        'lhe_tuesday_hours_open',
+        'lhe_tuesday_hours_close',
+        'lhe_wednesday_hours_open',
+        'lhe_wednesday_hours_close',
+        'lhe_thursday_hours_open',
+        'lhe_thursday_hours_close',
+        'lhe_friday_hours_open',
+        'lhe_friday_hours_close',
+        'lhe_saturday_hours_open',
+        'lhe_saturday_hours_close',
+        'lhe_sunday_hours_open',
+        'lhe_sunday_hours_close',
+    );
+    $field_instances = field_info_instances('node', 'library_schedule_entry');
+    
+    $field_exceptions = array(
+        'lhe_exception_date',
+        'lhe_exception_open',
+        'lhe_exception_close',
+        );
+    $field_instances_exception = 
+            field_info_instances('node', 'library_schedule_exception');
+    
+    //Delete Library Schedule Group Field
+    field_delete_field('library_schedule_group');
+    
+    //Delete Library Schedule weight
+    field_delete_field('library_schedule_weight');
+    
+    //Delete fields for Library Schedule entry
+    foreach($field_entries as $field) {
+        field_delete_field($field);
+    }
+    foreach($field_instances as $instance_name => $field_instance) {
+        field_delete_instance($field_instance);
+    }
+    
+    //Delete fields for Library Schedule exception
+    foreach($field_exceptions as $field) {
+        field_delete_field($field);
+    }
+    foreach($field_instances_exception as $instance_name => $field_instance) {
+        field_delete_instance($field_instance);
+    }
+    
+}
+
+/**
+ * Add the Library Schedule Group vocabulary with 3 terms.
+ */
+function library_schedule_add_taxonomy() {
+    $vocab = new stdClass();
+    $vocab->name = 'Library Schedule Group';
+    $vocab->machine_name = 'lh_group';
+    $vocab->description = t('How Library Schedule entries and exceptions are grouped');
+    $vocab->hierarchy = 1;
+    taxonomy_vocabulary_save($vocab);
+    
+    $lh_group = taxonomy_vocabulary_machine_name_load('lh_group');
+    
+    $term_fall = new stdClass();
+    $term_fall->vid = $lh_group->vid;
+    $term_fall->name = 'Fall';
+    $term_fall->weight = 0;
+    taxonomy_term_save($term_fall);
+    
+    $term_spring = new stdClass();
+    $term_spring->vid = $lh_group->vid;
+    $term_spring->name = 'Spring';
+    $term_spring->weight = 1;
+    taxonomy_term_save($term_spring);
+    
+    $term_summer = new stdClass();
+    $term_summer->vid = $lh_group->vid;
+    $term_summer->name = 'Summer';
+    $term_summer->weight = 2;
+    taxonomy_term_save($term_summer);
+}
+
+function library_schedule_delete_taxonomy() {
+    $vocab = taxonomy_vocabulary_machine_name_load('lh_group');
+    $terms = taxonomy_term_load_multiple(array(), array('vid' => $vocab->vid));
+    foreach ($terms as $term) {
+        taxonomy_term_delete($term->tid);
+    }
+    taxonomy_vocabulary_delete($vocab->vid);
+}

@@ -1,0 +1,586 @@
+<?php
+/**
+ * Implements hook_menu().
+ */
+function library_schedule_menu() {
+   
+    //Adds a section the configuration page
+    $items['admin/config/library_schedule'] = array(
+        'title' => 'Library Schedule',
+        'description' => 'Settings for Library Schedule',
+        'position' => 'left',
+        'weight' => -100,
+        'page callback' => 'system_admin_menu_block_page',
+        'access arguments' => array('administer site configuration'),
+        'file' => 'system.admin.inc',
+        'file_path' => drupal_get_path('module','system'),
+    );
+    
+    $items['admin/config/library_schedule/settings'] = array(
+        'title' => 'Settings',
+        'description' => 'Settings for Library Schedule',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('library_schedule_settings_form'),
+        'access arguments' => array('administer modules'),
+        'file' => 'library_schedule_settings_form.inc',
+    );
+    return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function library_schedule_theme() {
+    $content = array();
+    
+    $content['schedule_view'] = array(
+        'template' => 'schedule-view',
+        'path' => drupal_get_path('module','library_schedule') . '/templates/',
+        'variables' => array(
+            'entries' => NULL,
+            'exceptions' => NULL,
+            'groups' => NULL,
+        ),
+    );
+    
+    $content['todays_hours_view'] = array(
+        'template' => 'todays-hours-view',
+        'path' => drupal_get_path('module','library_schedule') . '/templates/',
+        'variables' => array(
+            'library_open' => NULL,
+            'closed_for_exception' => NULL,
+            'exception_name' => NULL,
+            'open_time' => NULL,
+            'close_time' => NULL,
+            'current_semester' => NULL,
+        ),
+    );
+    return $content;
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function library_schedule_block_info() {
+    $items = array();
+    
+    $items['lh_schedule_block'] = array(
+        'info' => t('Library schedule'),
+    );
+    
+    $items['lh_todays_hours_block'] = array(
+        'info' => t('Today\'s Hours'),
+        'cache' => DRUPAL_NO_CACHE,
+    );
+    
+    return $items;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function library_schedule_block_view($delta = '') {
+    $block = array();
+    
+    if ($delta == 'lh_schedule_block') {
+            $block['subject'] = t('Library Schedule');
+            $block['content'] = array(
+                '#theme' => 'schedule_view',
+                '#entries' => library_schedule_get_entries(),
+                '#exceptions' => library_schedule_get_exceptions(),
+                '#groups' => library_schedule_get_groups(),
+            );
+            
+            $block['content']['#attached']['css'] = array(
+                drupal_get_path('module', 'library_schedule') . '/css/schedule.css',
+                );
+            
+            $block['content']['#attached']['library'] =  array(
+                array('system', 'ui.tabs')
+            );
+            $block['content']['#attached']['js'] = array(
+                        drupal_get_path('module', 'library_schedule') . '/js/script.js',
+            );
+    }
+    if ($delta == 'lh_todays_hours_block') {
+            $block['subject'] = t('Today\'s Hours');
+            $vars = library_schedule_get_todays_hours_info();
+            $block['content'] = array(
+                '#theme' => 'todays_hours_view',
+                '#attached' => array(
+                    'css' => array(drupal_get_path('module', 'library_schedule') . '/css/todays_hours.css'),
+                ),
+                '#library_open' => $vars['library_open'],
+                '#closed_for_exception' => $vars['closed_for_exception'],
+                '#exception_name' => $vars['exception_name'],
+                '#open_time' => library_schedule_get_exception_time($vars['open_time']),
+                '#close_time' => library_schedule_get_exception_time($vars['close_time']),
+                '#current_semester' => $vars['current_semester'],
+            );
+    }
+    return $block;
+}
+
+/**
+ * Implements hook_validate().
+ */
+function library_schedule_exception_form_validate($form, &$form_state) {
+    // Validate weight
+    if (!is_numeric($form_state['values']['library_schedule_weight']['und'][0]['value'])) {
+    form_set_error('library_schedule_weight', t('Please enter an integer value.'));
+    }
+    
+    // Validate Exception date
+    if (strtotime($form_state['values']['lhe_exception_date']['und'][0]['value']) == FALSE) {
+    form_set_error('lhe_exception_date', t('Please enter a valid exception date.'));
+    }
+    
+    // Validate Exception hours
+    library_schedule_validate_time(
+            $form_state,
+            'lhe_exception_open',
+            'lhe_exception_close');
+}
+
+/**
+ * Implements hook_validate().
+ */
+function library_schedule_entry_form_validate($form, &$form_state) {
+    // Validate weight
+    if (!is_numeric($form_state['values']['library_schedule_weight']['und'][0]['value'])) {
+    form_set_error('library_schedule_weight', t('Please enter an integer value.'));
+    }
+    
+    //Validate date fields
+    if (strtotime($form_state['values']['lhe_start_date']['und'][0]['value']) == FALSE) {
+    form_set_error('lhe_start_date', t('Please enter a valid date.'));
+    }
+    
+    if (strtotime($form_state['values']['lhe_end_date']['und'][0]['value']) == FALSE) {
+    form_set_error('lhe_end_date', t('Please enter a valid date.'));
+    }
+    
+    if (strtotime($form_state['values']['lhe_start_date']['und'][0]['value']) >= 
+            strtotime($form_state['values']['lhe_end_date']['und'][0]['value'])) {
+    form_set_error('lhe_start_date', t('The start date cannot be later than or equal the end date.'));
+    }
+    
+    //Validate time fields
+    library_schedule_validate_week_hours($form_state);
+}
+
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function library_schedule_form_library_schedule_entry_node_form_alter(&$form, &$form_state) {
+  //Set Default Values
+    $form['comment_settings']['comment']['#default_value'] = 1;
+    $form['options']['promote']['#default_value'] = 0;
+    $form['options']['status']['#default_value'] = 0;
+    library_schedule_set_default($form);
+    $form['#validate'][] = 'library_schedule_entry_form_validate';
+    
+    $form['title']['#weight'] = 0;
+    $form['library_schedule_group']['#weight'] = 1;
+    
+    // Move dates to an array
+    $form['dates'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Dates'),
+        '#weight' => 2,
+    );
+    $form['dates']['lhe_start_date'] = $form['lhe_start_date'];
+    $form['dates']['lhe_end_date'] = $form['lhe_end_date'];
+    unset($form['lhe_start_date']);
+    unset($form['lhe_end_date']);
+    
+    //Monday hours to a fieldset
+    $form['monday_hours'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Monday Hours'),
+        '#weight' => 3,
+    );
+    $form['monday_hours']['lhe_monday_hours_open'] = $form['lhe_monday_hours_open'];
+    $form['monday_hours']['lhe_monday_hours_close'] = $form['lhe_monday_hours_close'];
+    unset($form['lhe_monday_hours_open']);
+    unset($form['lhe_monday_hours_close']);
+    
+    //Tuesday hours to a fieldset
+    $form['tuesday_hours'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Tuesday Hours'),
+        '#weight' => 4,
+    );
+    $form['tuesday_hours']['lhe_tuesday_hours_open'] = $form['lhe_tuesday_hours_open'];
+    $form['tuesday_hours']['lhe_tuesday_hours_close'] = $form['lhe_tuesday_hours_close'];
+    unset($form['lhe_tuesday_hours_open']);
+    unset($form['lhe_tuesday_hours_close']);
+    
+    //Wednesday hours to a fieldset
+    $form['wednesday_hours'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Wednesday Hours'),
+        '#weight' => 5,
+    );
+    $form['wednesday_hours']['lhe_wednesday_hours_open'] = $form['lhe_wednesday_hours_open'];
+    $form['wednesday_hours']['lhe_wednesday_hours_close'] = $form['lhe_wednesday_hours_close'];
+    unset($form['lhe_wednesday_hours_open']);
+    unset($form['lhe_wednesday_hours_close']);
+    
+    //Thursday hours to a fieldset
+    $form['thursday_hours'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Thursday Hours'),
+        '#weight' => 6,
+    );
+    $form['thursday_hours']['lhe_thursday_hours_open'] = $form['lhe_thursday_hours_open'];
+    $form['thursday_hours']['lhe_thursday_hours_close'] = $form['lhe_thursday_hours_close'];
+    unset($form['lhe_thursday_hours_open']);
+    unset($form['lhe_thursday_hours_close']);
+    
+    //Friday hours to a fieldset
+    $form['friday_hours'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Friday Hours'),
+        '#weight' => 7,
+    );
+    $form['friday_hours']['lhe_friday_hours_open'] = $form['lhe_friday_hours_open'];
+    $form['friday_hours']['lhe_friday_hours_close'] = $form['lhe_friday_hours_close'];
+    unset($form['lhe_friday_hours_open']);
+    unset($form['lhe_friday_hours_close']);
+    
+    //Saturday hours to a fieldset
+    $form['saturday_hours'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Saturday Hours'),
+        '#weight' => 8,
+    );
+    $form['saturday_hours']['lhe_saturday_hours_open'] = $form['lhe_saturday_hours_open'];
+    $form['saturday_hours']['lhe_saturday_hours_close'] = $form['lhe_saturday_hours_close'];
+    unset($form['lhe_saturday_hours_open']);
+    unset($form['lhe_saturday_hours_close']);
+    
+    //Sunday hours to a fieldset
+    $form['sunday_hours'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Sunday Hours'),
+        '#weight' => 9,
+    );
+    $form['sunday_hours']['lhe_sunday_hours_open'] = $form['lhe_sunday_hours_open'];
+    $form['sunday_hours']['lhe_sunday_hours_close'] = $form['lhe_sunday_hours_close'];
+    unset($form['lhe_sunday_hours_open']);
+    unset($form['lhe_sunday_hours_close']);
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function library_schedule_form_library_schedule_exception_node_form_alter(&$form, &$form_state) {
+    //Set Default Values
+    $form['comment_settings']['comment']['#default_value'] = 1;
+    $form['options']['promote']['#default_value'] = 0;
+    $form['options']['status']['#default_value'] = 0;
+    
+    $form['#validate'][] = 'library_schedule_exception_form_validate';
+    $form['title']['#weight'] = 0;
+    $form['lhe_exception_date']['#weight'] = 2;
+    $form['library_schedule_group']['#weight'] = 1;
+    $form['exception_hours'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Exception Hours'),
+        '#collapsible' => TRUE,
+        '#collapsed' => TRUE,
+        '#weight' => 3,
+    );
+    $form['exception_hours']['lhe_exception_open'] = $form['lhe_exception_open'];
+    $form['exception_hours']['lhe_exception_close'] = $form['lhe_exception_close'];
+    unset($form['lhe_exception_open']);
+    unset($form['lhe_exception_close']);
+}
+/**
+ * Implements hook_node_info().
+ */
+function library_schedule_node_info() {
+    $node_types = array();
+    
+    $node_types['library_schedule_entry'] = array(
+        'name' => t('Library Schedule Entry'),
+        'base' => 'node_content',
+        'description' => t('Add an entry to the Library schedule'),
+        'has_title' => TRUE,
+        'title_label' => t('Library Schedule Entry Name'),
+    );
+    
+    $node_types['library_schedule_exception'] = array(
+        'name' => t('Library Schedule Exception'),
+        'base' => 'node_content',
+        'description' => t('Add an exception to the Library schedule'),
+        'has_title' => TRUE,
+        'title_label' => t('Library Schedule Exception Name'),
+    );
+    
+    return $node_types;
+}
+
+/**
+ * Get the exception open and close time.
+ */
+function library_schedule_get_exception_time($var) {
+    if (strtolower($var) != 'closed') {
+        $var = date('g:ia',$var);
+    }
+    return $var;
+}
+
+/**
+ * Validate two time values
+ */
+function library_schedule_validate_time($form_state,$open_delta,$close_delta) {
+    // Validate Exception hours
+    if ((strtolower($form_state['values'][$open_delta]['und'][0]['value']) != 'closed')&&
+       (strtotime($form_state['values'][$open_delta]['und'][0]['value']) == FALSE)) {
+        form_set_error($open_delta, t('Please enter a valid time of day or "Closed"'));
+    }
+    
+    if ((strtolower($form_state['values'][$close_delta]['und'][0]['value']) != 'closed')&&
+       (strtotime($form_state['values'][$close_delta]['und'][0]['value']) == FALSE)) {
+        form_set_error($close_delta, t('Please enter a valid time of day or "Closed"'));
+    }
+    // OPening time can be no later than closing time or closed.
+    if ((strtotime($form_state['values'][$open_delta]['und'][0]['value'])) >=
+       (strtotime($form_state['values'][$close_delta]['und'][0]['value']))) {
+        if(strtolower($form_state['values'][$open_delta]['und'][0]['value'])!= 'closed' &&
+            strtolower($form_state['values'][$close_delta]['und'][0]['value'])!= 'closed') {
+            form_set_error($open_delta, t('The opening time must be sooner than the closing time.'));
+        }
+       }
+    
+    if ((strtolower($form_state['values'][$open_delta]['und'][0]['value']) == 'closed')xor
+        (strtolower($form_state['values'][$close_delta]['und'][0]['value']) == 'closed')) {
+        if (strtolower($form_state['values'][$open_delta]['und'][0]['value']) == 'closed') {
+        form_set_error($open_delta, t('Both fields must be set to "Closed" or a valid time.'));
+        } else {
+            form_set_error($close_delta, t('Both fields must be set to "Closed" or a valid time.'));
+        }
+    }
+}
+/**
+ * Validate all hours of the week.
+ */
+function library_schedule_validate_week_hours($form_state) {
+    $week_days = array('monday','tuesday','wednesday','thursday','friday','saturday','sunday');
+    foreach($week_days as $day) {
+        $open_delta = "lhe_" . $day . "_hours_open";
+        $close_delta = "lhe_" . $day . "_hours_close";
+        library_schedule_validate_time($form_state, $open_delta, $close_delta);
+    }
+}
+
+/**
+ * Set default hours for all week days
+ */
+function library_schedule_set_default(&$form) {
+    $week_days = array('monday','tuesday','wednesday','thursday','friday','saturday','sunday');
+    foreach($week_days as $day) {
+        $open_delta = "lhe_" . $day . "_hours_open";
+        $close_delta = "lhe_" . $day . "_hours_close";
+        if($form[$open_delta]['und'][0]['value']['#default_value'] == "") {
+          $form[$open_delta]['und'][0]['value']['#default_value'] = variable_get('library_schedule_default_open');
+        }
+        if($form[$close_delta]['und'][0]['value']['#default_value'] == "") {
+          $form[$close_delta]['und'][0]['value']['#default_value'] = variable_get('library_schedule_default_close');
+        }
+    }
+}
+
+/**
+ * Gets an array needed for the today's hours template file
+ */
+function library_schedule_get_todays_hours_info() {
+    $entries = node_load_multiple(array(),array('type'=>'library_schedule_entry'));
+    $exceptions = node_load_multiple(array(),array('type'=>'library_schedule_exception'));
+    $current_semester = '';
+    $open_hour = '';
+    $close_hour = '';
+    $library_open = FALSE;
+    $exception_today = FALSE;
+    $closed_for_exception = FALSE;
+    $exception_name = '';
+    
+    if(!isset($entries)) {
+        return;
+    }
+
+    foreach($entries as $node) {
+      $start_date = strtotime($node->lhe_start_date['und'][0]['value']);
+      $end_date = strtotime($node->lhe_end_date['und'][0]['value']);
+
+      $current_time = time();
+
+      if(($current_time >= $start_date)&&($current_time <= $end_date)) {
+        //Set current sumester name
+        $current_semester = $node->title;
+        // Convert todays hours to a time stamp
+        library_schedule_get_todays_hours($open_hour,$close_hour,$node);
+      }
+}
+
+ // Determine if today is an exception date
+    if(isset($exceptions)) {
+        foreach($exceptions as $node){
+            if(isset($node->lhe_exception_date['und'][0]['value'])) {
+            // sets exception day by only mondth an day
+            $exception_day = date('mdY',strtotime($node->lhe_exception_date['und'][0]['value']));
+            if($exception_day == date('mdY')) {
+                $exception_today = TRUE;
+                $exception_name = $node->title;
+                if(strtolower($node->lhe_exception_open['und'][0]['value']) != 'closed'&&
+                   strtolower($node->lhe_exception_close['und'][0]['value']) != 'closed') {
+                    $open_hour = $node->lhe_exception_open['und'][0]['value'];
+                    $close_hour = $node->lhe_exception_close['und'][0]['value'];
+      
+                } else {
+                    $closed_for_exception = TRUE;
+                    $library_open = false;
+                    $variables = array(
+                        'library_open' => $library_open,
+                        'closed_for_exception' => $closed_for_exception,
+                        'exception_name' => $exception_name,
+                        'open_time' => 'Closed',
+                        'close_time' => 'Closed',
+                        'current_semester' => $current_semester,
+                    );
+    
+    return $variables;
+                }
+            }
+            }
+        }
+    }
+    
+    // Determine if the library is open now.
+    $open_time = strtotime('Today ' . $open_hour);
+    $close_time = strtotime('Today ' . $close_hour);
+    if(($current_time >= $open_time)&&($current_time <= $close_time)){
+       $library_open = true;
+    }
+  
+$variables = array(
+        'library_open' => $library_open,
+        'closed_for_exception' => $closed_for_exception,
+        'exception_name' => $exception_name,
+        'open_time' => $open_time,
+        'close_time' => $close_time,
+        'current_semester' => $current_semester,
+    );
+    return $variables;
+}
+
+/**
+ * library_schedule_get_todays_hours
+ * 
+ */
+function library_schedule_get_todays_hours(&$open_hour,&$close_hour,$node) {
+    $day_of_week = date('l');
+
+    switch ($day_of_week){
+            case "Monday":
+            $open_hour = $node->lhe_monday_hours_open['und'][0]['value'];
+            $close_hour = $node->lhe_monday_hours_close['und'][0]['value'];
+            break;
+          case "Tuesday":
+            $open_hour = $node->lhe_tuesday_hours_open['und'][0]['value'];
+            $close_hour = $node->lhe_tuesday_hours_close['und'][0]['value'];
+            break;
+          case "Wednesday":
+            $open_hour = $node->lhe_wednesday_hours_open['und'][0]['value'];
+            $close_hour = $node->lhe_wednesday_hours_close['und'][0]['value'];
+            break;
+            case "Thursday":
+            $open_hour = $node->lhe_thursday_hours_open['und'][0]['value'];
+            $close_hour = $node->lhe_thursday_hours_close['und'][0]['value'];
+            break;
+          case "Friday":
+            $open_hour = $node->lhe_friday_hours_open['und'][0]['value'];
+            $close_hour = $node->lhe_friday_hours_close['und'][0]['value'];
+            break;
+          case "Saturday":
+            $open_hour = $node->lhe_saturday_hours_open['und'][0]['value'];
+            $close_hour = $node->lhe_saturday_hours_close['und'][0]['value'];
+            break;
+          case "Sunday":
+            $open_hour = $node->lhe_sunday_hours_open['und'][0]['value'];
+            $close_hour = $node->lhe_sunday_hours_close['und'][0]['value'];
+            break;
+          default:
+            echo "Error";
+        }
+}
+
+/**
+ * Returns Library Schedule entries as a structured array.
+ */
+function library_schedule_get_entries() {
+    $entry_list = array();
+    $entries = node_load_multiple(array(),array('type' => 'library_schedule_entry'));
+    
+    foreach ($entries as $node) {
+        $term = taxonomy_term_load($node->library_schedule_group['und'][0]['tid']);
+        $entry_list[$term->name][] = array(
+            'weight' => $node->library_schedule_weight['und'][0]['value'],
+            'node' => $node,
+        );
+    }
+    foreach ($entry_list as &$group) {
+        asort($group);
+    }
+    return $entry_list;
+}
+
+/**
+ * Returns Library Schedule exceptions as a structured array.
+ */
+function library_schedule_get_exceptions() {
+    $exception_list = array();
+    $exceptions = node_load_multiple(array(),array('type' => 'library_schedule_exception'));
+    
+    foreach ($exceptions as $node) {
+        $term = taxonomy_term_load($node->library_schedule_group['und'][0]['tid']);
+        $exception_list[$term->name][] = array(
+            'weight' => $node->library_schedule_weight['und'][0]['value'],
+            'node' => $node,
+        );
+    }
+    foreach ($exception_list as &$group) {
+        asort($group);
+    }
+    return $exception_list;
+}
+
+/**
+ * Returns Library Schedule groups as an array.
+ */
+function library_schedule_get_groups() {
+    $groups = array();
+    $entries = node_load_multiple(array(),array('type' => 'library_schedule_entry'));
+    foreach ($entries as $node) {
+        $term = taxonomy_term_load($node->library_schedule_group['und'][0]['tid']);
+        $start_date = strtotime($node->lhe_start_date['und'][0]['value']);
+        $end_date = strtotime($node->lhe_end_date['und'][0]['value']);
+        
+        if((!isset($groups[$term->name]['date']['start_date']))||
+                ($start_date)< $groups[$term->name]['date']['start_date']){
+           $groups[$term->name]['date']['start_date'] = date('m/d/Y',$start_date);
+        }
+        if((!isset($groups[$term->name]['date']['end_date']))||
+                ($end_date) > $groups[$term->name]['date']['end_date']){
+           $groups[$term->name]['date']['end_date'] = date('m/d/Y',$end_date);
+        }
+        $groups[$term->name]['weight'] = $term->weight;
+    }
+    foreach($groups as &$group) {
+        asort($group);
+    }
+    return $groups;
+}

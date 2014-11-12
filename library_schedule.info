@@ -1,0 +1,5 @@
+name = Library Schedule
+description = Displays the library schedule.
+package = Library Schedule
+configure = admin/config/library_schedule/settings
+core = 7.x
