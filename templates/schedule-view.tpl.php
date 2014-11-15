@@ -15,10 +15,10 @@
 <div class="schedule-item">
 <div class="schedule-item-content <?php print $node['node']->title; ?>">
         <h1><?php print $node['node']->title; ?></h1>
-        <div class="entry-date-range">
+        <span class="entry-date-range">
         <?php print $node['node']->lhe_start_date['und'][0]['value']; ?> - 
         <?php print $node['node']->lhe_end_date['und'][0]['value']; ?> 
-        </div>
+        </span>
  
         <table class="library-hours-table">
             <thead>
