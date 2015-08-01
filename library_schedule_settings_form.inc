@@ -1,37 +1,37 @@
 <?php
 /**
- * Form for library hours settings.
+ * Form for library schedule settings.
  */
-function library_hours_settings_form($form) {
+function library_schedule_settings_form($form) {
     
-    $form['library_hours_default_hours']= array(
+    $form['library_schedule_default_hours']= array(
         '#type' => 'fieldset',
         '#title' => t('Default Hours'),
         '#description' => t('Enter a valid time or Closed for both fields.'),
     );
     
-    $form['library_hours_default_hours']['library_hours_default_open'] = array(
+    $form['library_schedule_default_hours']['library_schedule_default_open'] = array(
         '#type' => 'textfield',
         '#title' => t('Opening Time'),
-        '#default_value' => variable_get('library_hours_default_open', '7:30am'),
+        '#default_value' => variable_get('library_schedule_default_open', '7:30am'),
         '#description' => t("Enter a valid opening time or Closed."),
         '#required' => TRUE,
     );
     
-    $form['library_hours_default_hours']['library_hours_default_close'] = array(
+    $form['library_schedule_default_hours']['library_schedule_default_close'] = array(
         '#type' => 'textfield',
         '#title' => t('Closing Time'),
-        '#default_value' => variable_get('library_hours_default_close', '10:00pm'),
+        '#default_value' => variable_get('library_schedule_default_close', '10:00pm'),
         '#description' => t("Enter a valid opening time or Closed."),
         '#required' => TRUE,
     );
     
     $vocab = taxonomy_vocabulary_machine_name_load('lh_group');
     $terms = taxonomy_term_load_multiple(array(), array('vid' => $vocab->vid));
-    usort($terms,"library_hours_sort_terms");
-    $form['library_hours_sortable_list']['#tree'] = true;
+    usort($terms,"library_schedule_sort_terms");
+    $form['library_schedule_sortable_list']['#tree'] = true;
     foreach ($terms as $term) {
-        $form['library_hours_sortable_list'][$term->tid] = array(
+        $form['library_schedule_sortable_list'][$term->tid] = array(
             'group' => array(
                 '#markup' => check_plain($term->name),
             ),
@@ -53,21 +53,21 @@ function library_hours_settings_form($form) {
     return $form;
 }
 
-function library_hours_sort_terms($a,$b) {
+function library_schedule_sort_terms($a,$b) {
     if($a->weight == $b->weight){
         return 0;
     }
     return ($a->weight < $b->weight) ? -1 : 1;
 }
-function theme_library_hours_settings_form($variables) {
+function theme_library_schedule_settings_form($variables) {
     $form = $variables['form'];
     $rows = array();
-    foreach (element_children($form['library_hours_sortable_list']) as $termID) {
-        $form['library_hours_sortable_list'][$termID]['weight']['#attributes']['class'] = array('group-item-weight');
+    foreach (element_children($form['library_schedule_sortable_list']) as $termID) {
+        $form['library_schedule_sortable_list'][$termID]['weight']['#attributes']['class'] = array('group-item-weight');
         $rows[] = array(
             'data' => array(
-                drupal_render($form['library_hours_sortable_list'][$termID]['group']),
-                drupal_render($form['library_hours_sortable_list'][$termID]['weight']),
+                drupal_render($form['library_schedule_sortable_list'][$termID]['group']),
+                drupal_render($form['library_schedule_sortable_list'][$termID]['weight']),
             ),
             'class' => array('draggable'),
         );
@@ -86,10 +86,10 @@ function theme_library_hours_settings_form($variables) {
 /**
  * Implements hook_validate().
  */
-function library_hours_settings_form_validate($form, &$form_state) {
+function library_schedule_settings_form_validate($form, &$form_state) {
     //Validate default hours
-    $open_delta = 'library_hours_default_open';
-    $close_delta = 'library_hours_default_close';
+    $open_delta = 'library_schedule_default_open';
+    $close_delta = 'library_schedule_default_close';
      if ((strtolower($form_state['values'][$open_delta]) != 'closed')&&
        (strtotime($form_state['values'][$open_delta]) == FALSE)) {
         form_set_error($open_delta, t('Please enter a valid time of day or "Closed"'));
@@ -118,18 +118,18 @@ function library_hours_settings_form_validate($form, &$form_state) {
     }
 }
 
-function library_hours_settings_form_submit(&$form_state) {
+function library_schedule_settings_form_submit(&$form_state) {
     $vocab = taxonomy_vocabulary_machine_name_load('lh_group');
     $terms = taxonomy_term_load_multiple(array(), array('vid' => $vocab->vid));
     
     foreach($terms as $term) {
-        $term->weight = $form_state['library_hours_sortable_list'][$term->tid]['weight']['#value'];
+        $term->weight = $form_state['library_schedule_sortable_list'][$term->tid]['weight']['#value'];
         taxonomy_term_save($term);
     }
     
     
-    $open_time = $form_state['library_hours_settings']['library_hours_default_hours']['library_hours_default_open']['#value'];
-    $close_time = $form_state['library_hours_settings']['library_hours_default_hours']['library_hours_default_close']['#value'];
-    variable_set('library_hours_default_open', $open_time);
-    variable_set('library_hours_default_close', $close_time);
+    $open_time = $form_state['library_schedule_settings']['library_schedule_default_hours']['library_schedule_default_open']['#value'];
+    $close_time = $form_state['library_schedule_settings']['library_schedule_default_hours']['library_schedule_default_close']['#value'];
+    variable_set('library_schedule_default_open', $open_time);
+    variable_set('library_schedule_default_close', $close_time);
 }
