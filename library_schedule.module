@@ -339,7 +339,7 @@ function library_schedule_node_info() {
     $node_types['library_schedule_entry'] = array(
         'name' => t('Library Schedule Entry'),
         'base' => 'node_content',
-        'description' => t('Add an entry to the Library Schedule schedule'),
+        'description' => t('Add an entry to the Library Schedule'),
         'has_title' => TRUE,
         'title_label' => t('Library Schedule Entry Name'),
     );
@@ -347,7 +347,7 @@ function library_schedule_node_info() {
     $node_types['library_schedule_exception'] = array(
         'name' => t('Library Schedule Exception'),
         'base' => 'node_content',
-        'description' => t('Add an exception to the Library Schedule schedule'),
+        'description' => t('Add an exception to the Library Schedule'),
         'has_title' => TRUE,
         'title_label' => t('Library Schedule Exception Name'),
     );
