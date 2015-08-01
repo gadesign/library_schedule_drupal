@@ -1,0 +1,14 @@
+ul#sortable-groups {
+   list-style: none;
+   width: 200px;
+}
+
+ul#sortable-groups li{
+    text-align: center;
+    padding: 5px;
+    cursor: pointer;
+    cursor: hand;
+}
+ul#sortable-groups li span{
+    position: absolute;
+}

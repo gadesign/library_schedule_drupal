@@ -110,8 +110,8 @@
 <h1>Exceptions</h1>
 
 <?php foreach ($exceptions[$key] as $node) : ?>
-        <p><?php print $node['node']->lhe_exception_date['und'][0]['value']; ?> - 
-        Closed for <?php print $node['node']->title; ?></p>
+        <p><?php print $node['node']->lhe_exception_start_date['und'][0]['value']; ?> to  
+        <?php print $node['node']->lhe_exception_end_date['und'][0]['value']; ?> - Closed for <?php print $node['node']->title; ?></p>
 <?php endforeach; ?>
 </div>
 <?php endif; ?>

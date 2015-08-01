@@ -1,5 +1,5 @@
-name = Library Schedule
-description = Displays the library schedule.
-package = Library Schedule
-configure = admin/config/library_schedule/settings
+name = Library Hours
+description = Displays the library hours.
+package = Library Hours
+configure = admin/config/library_hours/settings
 core = 7.x

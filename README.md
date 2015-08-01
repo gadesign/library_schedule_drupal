@@ -1,4 +1,4 @@
-# Library Schedule
+# Library Hours Module
 ## Version 1.0b
 This is a module for Drupal 7 that provides a responsive view for a library's
 schedule by the semester or a library's hours for a given day. The user can

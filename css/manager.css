@@ -1,0 +1,14 @@
+.manager-table tbody tr:nth-child(even) {
+    background-color: hsl(70,9%,95%);
+}
+.add-new {
+    display: inline-block;
+    background-color: hsl(70,9%,95%);
+    padding: 5px;
+    border-radius: 2px;
+    margin-left: 5px;
+    margin-bottom: 5px;
+}
+.table-heading {
+    display: inline-block;
+}
