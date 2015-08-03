@@ -1,17 +1,21 @@
 div.todays-hours-container{
     width: 360px;
     border-radius: 5px;
-    margin-right: 8px;
-    padding: 10px;
     background-color: rgba(204, 204, 204, 0.49);
-    font-size: .8em;
 }
-div.todays-hours p {
-    margin: 0;
+div.todays-hours-container div {
+    display: inline-block;
+    margin: 10px;
 }
+
 div.todays-hours{
-    width: 290px;
+
 }
+
+div.todays-hours p {
+
+}
+
 
 .vector-clock {
     background-image: url('../img/vector-clock.png');
@@ -20,10 +24,5 @@ div.todays-hours{
     background-position: center;
     width: 60px;
     height: 60px;
-    display: inline-block;
-    vertical-align: top;
     float: right;
-    position: relative;
-    top: -70px;
-    padding-bottom: 2px;
 }

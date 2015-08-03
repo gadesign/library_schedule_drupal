@@ -596,6 +596,7 @@ function library_schedule_get_groups() {
     $groups = array();
     $entries = library_schedule_get_entries();
     $exceptions = library_schedule_get_exceptions();
+    
     foreach ($entries as $node) {
         $tid =$node->library_schedule_group['und'][0]['tid'];
         $term = taxonomy_term_load($tid);
@@ -608,13 +609,16 @@ function library_schedule_get_groups() {
                     'start_date' => $node->lhe_start_date['und'][0]['safe_value'],
                     'end_date' => $node->lhe_end_date['und'][0]['safe_value'],
                 ),
+                // For the moment this only lists one per a tab.
+                // This needs the functionality of appending instead
+                // of overwriting.
                 'entries' => array(
                     $node->nid => $node,
                 ),
-                
                 );
+
     }
-    
+
     foreach ($exceptions as $node) {
         $tid = $node->library_schedule_group['und'][0]['tid'];
         $term = taxonomy_term_load($tid);

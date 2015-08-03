@@ -107,7 +107,7 @@
 <?php if (isset($group['exceptions'])) : ?>
 <div class="exception-container">
 <div class="exceptions">
-<h1>Exceptions</h1>
+<h1>Exception</h1>
 
 <?php foreach ($group['exceptions'] as $node) : ?>
         <p><?php print $node->lhe_exception_start_date['und'][0]['value']; ?> to  
